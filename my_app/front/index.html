@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Traduction en temps réel</title>
+    <style>
+        body { padding: 20px; font-family: Arial, sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; }
+        #translation { 
+            padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 100px;
+            background: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        .loading { color: #666; font-style: italic; }
+        
+        /* Style pour les boutons de langue */
+        .language-buttons {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .language-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #f0f0f0;
+            transition: all 0.3s;
+        }
+        .language-btn:hover {
+            background: #e0e0e0;
+        }
+        .language-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .current-language {
+            margin-top: 10px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Traduction en temps réel</h2>
+        
+        <div class="language-buttons">
+            <button class="language-btn active" data-lang="french">Français</button>
+            <button class="language-btn" data-lang="english">Anglais</button>
+            <button class="language-btn" data-lang="spanish">Espagnol</button>
+            <button class="language-btn" data-lang="german">Allemand</button>
+            <button class="language-btn" data-lang="italian">Italien</button>
+        </div>
+        <div class="current-language">Langue cible : Français</div>
+
+        <textarea id="inputText" placeholder="Tapez votre texte ici..."></textarea>
+        <h3>Traduction :</h3>
+        <div id="translation"></div>
+    </div>
+
+    <script>
+        const inputField = document.getElementById('inputText');
+        const translationDiv = document.getElementById('translation');
+        const languageButtons = document.querySelectorAll('.language-btn');
+        const currentLanguageDiv = document.querySelector('.current-language');
+        let typingTimer;
+        let currentLanguage = 'french';
+
+        // Gestion des boutons de langue
+        languageButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Retirer la classe active de tous les boutons
+                languageButtons.forEach(btn => btn.classList.remove('active'));
+                // Ajouter la classe active au bouton cliqué
+                button.classList.add('active');
+                // Mettre à jour la langue courante
+                currentLanguage = button.dataset.lang;
+                currentLanguageDiv.textContent = `Langue cible : ${button.textContent}`;
+                // Retraduire le texte si présent
+                if (inputField.value.trim()) {
+                    translateText(inputField.value);
+                }
+            });
+        });
+
+        inputField.addEventListener('input', (e) => {
+            const currentText = e.target.value;
+            
+            clearTimeout(typingTimer);
+            
+            translationDiv.innerHTML = '<span class="loading">En cours de traduction...</span>';
+
+            if (currentText.endsWith('.') || currentText.length > 50) {
+                translateText(currentText);
+            } else {
+                typingTimer = setTimeout(() => {
+                    translateText(currentText);
+                }, 500);
+            }
+        });
+
+        async function translateText(text) {
+            if (!text.trim()) {
+                translationDiv.textContent = '';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/translate', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        target_language: currentLanguage
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.translation) {
+                    translationDiv.textContent = result.translation;
+                } else if (result.detail) {
+                    translationDiv.textContent = `Erreur: ${result.detail}`;
+                }
+            } catch (error) {
+                translationDiv.textContent = `Erreur: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
